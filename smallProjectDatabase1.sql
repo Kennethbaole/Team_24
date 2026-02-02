@@ -25,10 +25,10 @@ CREATE TABLE contacts (
   FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE
 );
-
+/* I added this to make sure it worked but I'll leave it here for yall if you need it
 INSERT INTO users (username, password_hash, first_name, last_name, email)
 VALUES ('dylan', 'fakehash', 'Dylan', 'Ashmore', 'dylan@test.com');
 INSERT INTO contacts (user_id, first_name, last_name, phone, email)
 VALUES (1, 'John', 'Doe', '407-555-1111', 'john@example.com');
-
+*/
 

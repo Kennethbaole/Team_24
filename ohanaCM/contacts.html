@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contacts — OhanaCM</title>
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+
+<header class="header">
+  <div class="container">
+    <h1 class="logo">OhanaCM</h1>
+    <a href="index.html" class="profile-link">Home →</a>
+  </div>
+</header>
+
+<section class="contacts-container">
+  <div class="contacts-card">
+
+    <!-- HEADER & SEARCH ONLY -->
+    <div class="contacts-header">
+      <div>
+        <h2>Aloha, Noah</h2>
+        <p>All Contacts</p>
+      </div>
+      <div class="actions">
+        <input class="search-box" id="searchInput" placeholder="Search Contacts" oninput="filterContacts()" />
+      </div>
+    </div>
+
+    <!-- NO CONTACTS -->
+    <div id="noContactsView" class="no-contacts-center">
+      <p>No contacts yet</p>
+      <button class="create-btn" onclick="openModal('newContactModal')">Create Contact +</button>
+    </div>
+
+    <!-- CONTACT TABLE -->
+    <div id="tableView" class="contacts-table-container hidden"></div>
+
+  </div>
+</section>
+
+<!-- ===================== NEW CONTACT MODAL ===================== -->
+
+<div class="modal-overlay" id="newContactModal">
+  <div class="modal-card new-modal">
+    <button class="modal-close" onclick="closeModal('newContactModal')">✕</button>
+    <h2 class="modal-title-large">New Contact</h2>
+
+    <form id="newContactForm" class="modal-form-new">
+      <div class="name-row">
+        <div class="form-group-wide">
+          <label>First Name</label>
+          <input id="newFirstName" type="text" />
+        </div>
+        <div class="form-group-wide">
+          <label>Last Name</label>
+          <input id="newLastName" type="text" />
+        </div>
+      </div>
+
+      <div class="form-group-full">
+        <label>Address</label>
+        <input id="newAddress" type="text" />
+      </div>
+
+      <div class="form-group-full">
+        <label>Email</label>
+        <input id="newEmail" type="email" />
+      </div>
+
+      <div class="form-group-full">
+        <label>Phone</label>
+        <input id="newPhone" type="tel" />
+      </div>
+
+      <div class="form-group-full photo-upload-group">
+        <label>Photo</label>
+        <button class="photo-btn" type="button" onclick="document.getElementById('newPhoto').click()">
+          Upload Photo
+        </button>
+        <input type="file" id="newPhoto" style="display:none;" />
+        <p class="photo-text" id="newPhotoText">No file chosen</p>
+      </div>
+
+      <button class="modal-submit create-btn-large">Create</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== EDIT CONTACT MODAL ===================== -->
+
+<div class="modal-overlay" id="editContactModal">
+  <div class="modal-card new-modal">
+    <button class="modal-close" onclick="closeModal('editContactModal')">✕</button>
+    <h2 class="modal-title-large">Edit Contact</h2>
+
+    <form id="editContactForm" class="modal-form-new">
+      <div class="name-row">
+        <div class="form-group-wide">
+          <label>First Name</label>
+          <input id="editFirstName" type="text" />
+        </div>
+        <div class="form-group-wide">
+          <label>Last Name</label>
+          <input id="editLastName" type="text" />
+        </div>
+      </div>
+
+      <div class="form-group-full">
+        <label>Address</label>
+        <input id="editAddress" type="text" />
+      </div>
+
+      <div class="form-group-full">
+        <label>Email</label>
+        <input id="editEmail" type="email" />
+      </div>
+
+      <div class="form-group-full">
+        <label>Phone</label>
+        <input id="editPhone" type="tel" />
+      </div>
+
+      <div class="form-group-full photo-upload-group">
+        <label>Photo</label>
+        <button class="photo-btn" type="button" onclick="document.getElementById('editPhoto').click()">
+          Upload Photo
+        </button>
+        <input type="file" id="editPhoto" style="display:none;" />
+        <p class="photo-text" id="editPhotoText">No file chosen</p>
+      </div>
+
+      <div style="display:flex; gap:1rem; justify-content:flex-end;">
+        <button class="modal-submit update-btn">Update</button>
+        <button type="button" class="modal-delete" onclick="confirmDelete()">Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== DELETE CONFIRM MODAL ===================== -->
+
+<div class="modal-overlay" id="deleteConfirmModal">
+  <div class="modal-card confirm-card">
+    <p>Are you sure you want to delete this contact?</p>
+    <div class="confirm-buttons">
+      <button class="cancel-btn" onclick="closeModal('deleteConfirmModal')">Cancel</button>
+      <button class="confirm-btn" onclick="deleteContact()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCRIPT ===================== -->
+
+<script>
+let contacts = []
+let currentEditIndex = null
+
+function openModal(id) {
+  document.getElementById(id).style.display = "flex"
+}
+function closeModal(id) {
+  document.getElementById(id).style.display = "none"
+}
+
+document.getElementById("newContactForm").addEventListener("submit", function(e) {
+  e.preventDefault()
+  contacts.push({
+    first: document.getElementById("newFirstName").value,
+    last: document.getElementById("newLastName").value,
+    address: document.getElementById("newAddress").value,
+    email: document.getElementById("newEmail").value,
+    phone: document.getElementById("newPhone").value,
+    photo: document.getElementById("newPhoto").files[0]
+      ? URL.createObjectURL(document.getElementById("newPhoto").files[0])
+      : ""
+  })
+  resetNewForm()
+  renderContacts()
+  closeModal("newContactModal")
+})
+
+document.getElementById("newPhoto").addEventListener("change", function() {
+  const fileText = this.files[0] ? this.files[0].name : "No file chosen"
+  document.getElementById("newPhotoText").textContent = fileText
+})
+
+function renderContacts() {
+  document.getElementById("noContactsView").classList.add("hidden")
+  const container = document.getElementById("tableView")
+  container.classList.remove("hidden")
+
+  let html = `
+    <table class="contacts-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Picture</th>
+          <th>Name</th>
+          <th>Address</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Date Created</th>
+        </tr>
+      </thead>
+      <tbody>
+  `
+
+  contacts.forEach((c, i) => {
+    html += `
+      <tr>
+        <td><button class="edit-btn" onclick="openEdit(${i})">✎</button></td>
+        <td><img src="${c.photo}" class="small-pic"></td>
+        <td>${c.first} ${c.last}</td>
+        <td>${c.address}</td>
+        <td>${c.email}</td>
+        <td>${c.phone}</td>
+        <td>${new Date().toLocaleDateString()}</td>
+      </tr>
+    `
+  })
+
+  html += `</tbody></table>`
+  container.innerHTML = html
+}
+
+function openEdit(index) {
+  currentEditIndex = index
+  const c = contacts[index]
+  document.getElementById("editFirstName").value = c.first
+  document.getElementById("editLastName").value = c.last
+  document.getElementById("editAddress").value = c.address
+  document.getElementById("editEmail").value = c.email
+  document.getElementById("editPhone").value = c.phone
+  openModal("editContactModal")
+}
+
+document.querySelector(".update-btn").addEventListener("click", function(e) {
+  e.preventDefault()
+  const c = contacts[currentEditIndex]
+  c.first = document.getElementById("editFirstName").value
+  c.last = document.getElementById("editLastName").value
+  c.address = document.getElementById("editAddress").value
+  c.email = document.getElementById("editEmail").value
+  c.phone = document.getElementById("editPhone").value
+  renderContacts()
+  closeModal("editContactModal")
+})
+
+function confirmDelete() {
+  closeModal("editContactModal")
+  openModal("deleteConfirmModal")
+}
+
+function deleteContact() {
+  contacts.splice(currentEditIndex, 1)
+  renderContacts()
+  closeModal("deleteConfirmModal")
+}
+
+function resetNewForm() {
+  document.getElementById("newContactForm").reset()
+  document.getElementById("newPhotoText").textContent = "No file chosen"
+}
+
+function filterContacts() {
+  const q = document.getElementById("searchInput").value.toLowerCase()
+  renderContacts()
+  document.querySelectorAll("#tableView tbody tr").forEach(row => {
+    const text = row.textContent.toLowerCase()
+    row.style.display = text.includes(q) ? "" : "none"
+  })
+}
+</script>
+
+</body>
+</html>

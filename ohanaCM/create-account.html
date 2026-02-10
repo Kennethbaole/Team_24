@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Account | OhanaCM</title>
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <h1 class="logo">OhanaCM</h1>
+      <a href="index.html" class="profile-link">Home →</a>
+    </div>
+  </header>
+
+  <main class="login-main">
+    <section class="login-wrapper">
+      <div class="login-card">
+        <h2>Create an account</h2>
+        <form class="login-form">
+          <div class="name-fields">
+            <div class="form-group">
+              <label for="firstName">First Name</label>
+              <input type="text" id="firstName" required />
+            </div>
+            <div class="form-group">
+              <label for="lastName">Last Name</label>
+              <input type="text" id="lastName" required />
+            </div>
+          </div>
+
+          <label for="username">Username</label>
+          <input type="text" id="username" required />
+
+          <label for="email">Email</label>
+          <input type="email" id="email" required />
+
+          <label for="password">Password</label>
+          <input type="password" id="password" required />
+
+          <button type="submit" class="login-btn">Create Account</button>
+        </form>
+        <p class="signup-text">
+          Already have an account?
+          <a href="login.html">Sign In</a>
+        </p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

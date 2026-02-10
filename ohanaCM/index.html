@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OhanaCM | Home</title>
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <h1 class="logo">OhanaCM</h1>
+      <!-- You can keep or remove this link since you're on index -->
+      <a href="index.html" class="profile-link">Home →</a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="main-content">
+    <section class="hero">
+      <h2>
+        Manage your contacts,<br />
+        <span class="highlight">no one gets left behind.</span>
+      </h2>
+      <p class="subtext">An unoriginal approach, but gets the job done.</p>
+      <div class="cta-buttons">
+        <a href="login.html" class="btn">Sign In</a>
+        <a href="create-account.html" class="btn">Create an account</a>
+      </div>
+    </section>
+
+    <!-- Contacts Section -->
+    <section class="contacts-container">
+      <div class="contacts-card">
+        <h3>Aloha, Noah</h3>
+        <div class="contacts-header">
+          <h4>All Contacts</h4>
+          <div class="actions">
+            <input type="text" class="search-box" placeholder="Search Contacts" />
+            <button class="create-btn">Create Contact +</button>
+          </div>
+        </div>
+
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th>Picture</th>
+              <th>Name</th>
+              <th>Address</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Date Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><img src="https://randomuser.me/api/portraits/men/10.jpg" alt="William" /></td>
+              <td>William Benjamin</td>
+              <td>4225, State Street, Seattle, Washington</td>
+              <td>w.ben@gmail.com</td>
+              <td>232-422-8849</td>
+              <td>12/26/2024</td>
+            </tr>
+            <tr>
+              <td><img src="https://randomuser.me/api/portraits/men/20.jpg" alt="Peter" /></td>
+              <td>Peter McClain</td>
+              <td>324 Ocean View, San Diego, California</td>
+              <td>petermeter@yahoo.com</td>
+              <td>854-649-7771</td>
+              <td>01/29/2026</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,17 +1,17 @@
 <?php
 
-header('Access-Control-Allow-Origin: *')
-header('Content-Type: application/json')
-header('Access-Control-Allow-Method: GET, POST, PUT, DELETE')
-header('Access-Control-Allow-Headers: ')
+header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json');
+header('Access-Control-Allow-Method: GET, POST, PUT, DELETE');
+header('Access-Control-Allow-Headers: ');
 
 $host = "localhost";
-$username = "root";
-$password = "Team24POOSD";
+$username = "Team24";
+$password = "databasekey";
 $db_name = "contact_manager";
 
 
-$conn = mysqli_connect($host, $username, $password, $db_name);
+$conn = new mysqli($host, $username, $password, $db_name);
 
 if ($conn -> connect_error) 
 {
@@ -21,7 +21,7 @@ if ($conn -> connect_error)
 }
 
 // Get response method
-$reqMethod = $_SERVER["REQUEST METHOD"];
+$reqMethod = $_SERVER["REQUEST_METHOD"];
 
 // Retrieve user login input as JSON object
 $data = json_decode(file_get_contents("php://input"), true);

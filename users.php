@@ -39,7 +39,7 @@ switch ($reqMethod)
 
         // Prepare query, execute & get result from query
         $stmt = $conn -> prepare("SELECT * from users WHERE username = ? AND password_hash = ?");
-        $stmt -> blind_param("ss", $username, $password);
+        $stmt -> bind_param("ss", $username, $password);
         $stmt -> execute();
         $result = $stmt -> get_result();
 
@@ -55,8 +55,10 @@ switch ($reqMethod)
             // Display message
             echo "Incorrect username or password.";
         }
+        
+        //echo "GET Successful";
         break;
-
+        
     // ====================== //
     // POST - Update - Signup
     // ====================== //
@@ -65,8 +67,8 @@ switch ($reqMethod)
         // Get data from JSON
         $username = $data['username'];
         $password = $data['password'];
-        $first_name = $data['first name'];
-        $last_name = $data['last name'];
+        $first_name = $data['first_name'];
+        $last_name = $data['last_name'];
         $email = $data['email'];
 
         // Check for existing entry with matching username
@@ -76,7 +78,7 @@ switch ($reqMethod)
         $result = $stmt -> get_result();
 
         // If no existing matching username found, perform insert into database
-        if (!$result)
+        if ($result->num_rows == 0)
         {
             $stmt = $conn -> prepare("INSERT INTO users (first_name, last_name, username, password_hash, email) VALUES (?,?,?,?,?)");
             $stmt -> bind_param("sssss", $first_name, $last_name, $username, $password, $email);
@@ -84,14 +86,15 @@ switch ($reqMethod)
             $stmt -> close();
 
             // Display message + new user ID to add information
-            echo "New account added successfully!" . $conn -> lastInsertID();
+            echo "New account added successfully! {User ID: " . $conn->insert_id . "}";
         }
         else
         {
             // Display message
             echo "Username is taken!";
         }
-    break;
+        break;
+    
     $conn -> close();
 
 }

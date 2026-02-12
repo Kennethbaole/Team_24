@@ -6,12 +6,12 @@ header('Access-Control-Allow-Method: GET, POST, PUT, DELETE')
 header('Access-Control-Allow-Headers: ')
 
 $host = "localhost";
-$db_name = "root";
-$username = "Team24POOSD";
-$password = "contact_manager";
+$username = "root";
+$password = "Team24POOSD";
+$db_name = "contact_manager";
 
 
-$conn = mysql_connect($host, $db_name, $username, $password);
+$conn = mysqli_connect($host, $username, $password, $db_name);
 
 if ($conn -> connect_error) 
 {

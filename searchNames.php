@@ -38,7 +38,7 @@ else
     $searchPattern = "%" . $search . "%"
     // $namePattern = "%" . $inData["search"] . "%";
 
-    $stmt->bind_param("ss", $user_id, $searchPattern, $searchPattern, $searchPattern, $searchPattern);
+    $stmt->bind_param("issss", $user_id, $searchPattern, $searchPattern, $searchPattern, $searchPattern);
     $stmt->execute();
 
     // Get set of results

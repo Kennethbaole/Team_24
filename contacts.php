@@ -138,7 +138,7 @@ switch ($reqMethod)
                 $searchLastName = '%' . $last_name . '%';
                 $searchPhone = '%' . $phone . '%';
                 $searchEmail = '%' . $email . '%';
-                $stmt -> bind_param("issss", $user_id, $searchFirstName, $searchLastName, $searchPhone, $searchEmail)
+                $stmt -> bind_param("issss", $user_id, $searchFirstName, $searchLastName, $searchPhone, $searchEmail);
                 $stmt -> execute();
                 $result = $stmt -> get_result();
 

@@ -10,12 +10,13 @@ $username = "Team24";
 $password = "databasekey";
 $db_name = "contact_manager";
 
+include "contacts.php";
 
 $conn = new mysqli($host, $username, $password, $db_name);
 
 if ($conn -> connect_error) 
 {
-    http_response_code(500);
+    http_response_code(500);    // 500 - Connection Failed
     echo json_encode(["message" => "Database connection failed!"]);
     // exit();
 }
@@ -48,7 +49,7 @@ switch ($reqMethod)
         {
             // Output the user ID
             $user_id = $row['id'];
-            echo "The user ID is: " . $user_id;
+            echo "The user ID is: " . $id;
         }
         else 
         {
@@ -60,7 +61,7 @@ switch ($reqMethod)
         break;
         
     // ====================== //
-    // POST - Update - Signup
+    // POST - Create - Signup
     // ====================== //
 
     case 'POST':
@@ -86,9 +87,9 @@ switch ($reqMethod)
             $stmt -> close();
 
             // Display message + new user ID to add information
-            echo "New account added successfully! {User ID: " . $conn->insert_id . "}";
+            echo "New account added successfully! {User ID: " . $id => $conn->insert_id . "}";
         }
-        else
+        else 
         {
             // Display message
             echo "Username is taken!";

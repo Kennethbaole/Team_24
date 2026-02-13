@@ -10,88 +10,231 @@ $username = "Team24";
 $password = "databasekey";
 $db_name = "contact_manager";
 
-
-$conn = new mysqli($host, $username, $password, $db_name);
-
-if ($conn -> connect_error) 
-{
-    http_response_code(500);
-    echo json_encode(["message" => "Database connection failed!"]);
-    // exit();
-}
+// Test require_once statement to avoid establishing another connection
+// Allow API to fetch the right contacts database from the user_id var in users.php
+// Discard if test fails
+require_once 'users.php';
 
 $reqMethod = $_SERVER["REQUEST_METHOD"];
 
 $data = json_decode(file_get_contents("php://input"), true);
+$user_id = $id; // user_id in contacts table = id in users table
 
 switch ($reqMethod)
 {
+    // ========================= //
+    // POST - Create - Add Entry
+    // ========================= //
+
     case 'POST':
-        $user_id = $data['user_id'];
-        $first_name = $data['first_name'];
-        $last_name = $data['last_name'];
-        $phone = $data['phone'];
-        $email = $data['email'];
 
-        $stmt = $conn->prepare("SELECT * FROM contacts WHERE user_id = ? AND first_name = ? AND last_name = ?");
-        $stmt -> bind_param("sss", $user_id, $first_name, $last_name);
-        $stmt -> execute();
-        $result = $stmt -> get_result();
+        $searchCount = 0;       // # of results found
+        $searchResults = [];    // result array
 
-        if ($result->num_rows > 0)
+        // Trim any leading/trailing whitespaces
+        $first_name = trim($data['first_name']) ?? null;
+        $last_name = trim($data['last_name']) ?? null;
+        $phone = trim($data['phone']) ?? null;
+        $email = trim($data['email']) ?? null;
+
+        // Search for existing entries that matches an info
+        if ($first_name && $last_name)
         {
-            http_response_code(409);
-            echo "User is already in contacts";
-            $stmt->close();
-            break;
+                $stmt = $conn->prepare("SELECT * FROM contacts WHERE user_id = ? AND first_name = ? AND last_name = ?");
+                $stmt -> bind_param("iss", $user_id, $first_name, $last_name);
+                $stmt -> execute();
+                $result = $stmt -> get_result();
+        
+                // Entries with matching names found = display them!
+                while ($row = $result -> fetch_assoc())
+                {
+                    $searchResults[] = $row;
+                    $searchCount++;
+                }
+                if ($searchCount > 0)
+                {
+                    http_response_code(409);    // 409 - Conflict
+                    echo "User is already in contacts";
+                    echo json_encode($searchResults);
+                    $stmt->close();
+                    // break;
+                }
+
+                // No matching entries found!
+                else
+                {
+                    $errors = [];
+                    if ($phone || $email)
+                    {
+                        // Validate phone number & email first!
+                        if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) // Email must have @"domain"."abc" tail format
+                        {
+                            $errors[] = "Invalid email format!";
+                        }
+                        if ($phone && !preg_match("/^\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/", $phone))    // Allow multiple phone number formats, i.e. (xxx) xxx-xxxx, xxx-xxx-xxxx,xxxxxxxxxx, etc.
+                        {       
+                            $errors[] = "Phone number must be 10 digits!";
+                        }
+
+                        // Display format error messages until user fixes them
+                        if (!empty($errors))
+                            {
+                                http_response_code(422);    // 422 - Unprocessable Entity
+                                echo json_encode(["Success" => false, "Errors" => $errors]);
+                                exit();
+                            }
+
+                        // Phone number and/or email present and validated = good to add!
+                        $stmt = $conn->prepare("INSERT INTO contacts (user_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)");
+                        $stmt->bind_param("issss", $user_id, $first_name, $last_name, $phone, $email);
+                        $stmt->execute();
+                
+                        http_response_code(200);    // 200 - Success
+                        echo "Contact added successfully";
+                        $stmt->close();
+                    }
+
+                    // No phone number and email added!
+                    else
+                    {
+                        $errors[] = "Phone number or email required!";
+                        echo json_ecode($errors);
+                        exit(); 
+                    }
+                }
         }
 
-        $stmt = $conn->prepare("INSERT INTO contacts (user_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)");
-        $stmt->bind_param("sssss", $user_id, $first_name, $last_name, $phone, $email);
-        $stmt->execute();
+        // No name added!
+        else
+        {
+            http_response_code(400);    // 400 - Bad Request
+            echo "Full name required!";
+            exit();
+        }
 
-        http_response_code(200);
-        echo "Contact added successfully";
-        $stmt->close();
-        break;
+
+    // =========================== //
+    // GET - Read - Search Entries
+    // =========================== //
 
     case 'GET':
-        //
+        $searchCount = 0;       // # of results found
+        $searchResults = [];    // result array
+
+        // Get searched contact info
+        if ($data)
+        {
+            // Trim any leading/trailing whitespaces
+            $first_name = trim($data["first_name"]) ?? null;
+            $last_name = trim($data["last_name"]) ?? null;
+            $phone = trim($data["phone"]) ?? null;
+            $email = trim($data["email"]) ?? null;
+
+            if ($first_name || $last_name || $phone || $email)
+            {
+                // Search w/ partial matching
+                $stmt = $conn -> prepare("SELECT * from contacts WHERE user_id = ? AND (first_name LIKE ? OR last_name LIKE ? OR phone LIKE ? OR email LIKE ?)");
+                $searchFirstName = '%' . $first_name . '%';
+                $searchLastName = '%' . $last_name . '%';
+                $searchPhone = '%' . $phone . '%';
+                $searchEmail = '%' . $email . '%';
+                $stmt -> bind_param("issss", $user_id, $searchFirstName, $searchLastName, $searchPhone, $searchEmail)
+                $stmt -> execute();
+                $result = $stmt -> get_result();
+
+                // Add search result to array
+                while ($row = $result -> fetch_assoc())
+                {
+                    $searchResults[] = $row;
+                    $searchCount++;
+                }
+
+                // No matching contacts found
+                if ($searchCount == 0)
+                {
+                    echo "No matching phone number nor email found!";
+                }
+
+                else
+                {
+                    echo $searchCount . " results found:";
+                    echo json_encode($searchResults);
+                    $stmt -> close();
+                }
+            }
+        } 
+        // Get all contact infos
+        else
+        {
+            $stmt = $conn -> prepare("SELECT * from contacts WHERE user_id = $user_id");
+            $stmt -> execute();
+            $result = $stmt -> get_result();
+
+            while ($row = $result -> fetch_assoc())
+            {
+                $searchResults[] = $row;
+                $searchCount++;
+            }
+
+            // Empty contact infos
+            if ($searchCount == 0)
+            {
+                echo "No contact info found!";
+            }
+            // Return all contact infos as JSON
+            else
+            {
+                echo $searchCount . " results found:";
+                echo json_encode($searchResults);
+            }
+
+            // Close connection
+            $stmt -> close();
+        } 
         break;
     
-    case 'PUT':
-        $user_id = $data['user_id'];
-        $first_name = $data['first_name'];
-        $last_name = $data['last_name'];    
-        $phone = $data['phone'];
-        $email = $data['email'];
+    // ========================= //
+    // PUT - Update - Edit Entry
+    // ========================= //
 
-        $stmt = $conn->prepare("UPDATE contacts SET phone = ?, email = ? WHERE user_id = ? AND first_name = ? AND last_name = ?");
-        $stmt->bind_param("sssss", $user_id, $first_name, $last_name, $phone, $email);
+    case 'PUT':
+        $id = $data["id"];      // Index of edited entry in contacts table
+        $first_name = trim($data['first_name']);
+        $last_name = trim($data['last_name']);    
+        $phone = trim($data['phone']);
+        $email = trim($data['email']);
+
+        $stmt = $conn->prepare("UPDATE contacts SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE user_id = ? AND id = ?");
+        $stmt->bind_param("ssssii",  $first_name, $last_name, $phone, $email, $user_id, $id);
         
         if (!$stmt->execute()) 
         {
             http_response_code(500);
             echo "Update failed";
-            $stmt->close();
-            break;
+            // break;
         }
-
-        if ($stmt->affected_rows === 0) 
+        else if ($stmt->affected_rows === 0) 
         {
             http_response_code(404);
             echo "No contact found";
-            $stmt->close();
-            break;
+            // break;
+        }
+        else
+        {
+            http_response_code(200);
+            echo "Contact updated successfully";
         }
 
-        http_response_code(200);
-        echo "Contact updated successfully";
+        // Close connection
         $stmt->close();
 
         break;
     
-    case ('DELETE'):
+    // ============================== //
+    // DELETE - Delete - Delete Entry
+    // ============================== //
+
+    case 'DELETE':
         $user_id = $data['user_id'];
         $first_name = $data['first_name'];
         $last_name = $data['last_name'];    

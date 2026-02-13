@@ -37,7 +37,7 @@ $password = "databasekey";
         $result = $stmt->get_result();
 
         // Loop through results
-        while($row = $stmt->fetch_assoc());
+        while($row = $stmt->fetch_assoc())
         {
             if ($searchCount > 0)
             {

@@ -1,9 +1,9 @@
 <?php
 
 $host = "localhost";
-$db_name = "root";
-$username = "Team24POOSD";
-$password = "contact_manager";
+$db_name = "contact_manager";
+$username = "Team24";
+$password = "databasekey";
 
     //Read incoming request data
     $inData = getRequestInfo();
@@ -22,10 +22,15 @@ $password = "contact_manager";
     else
     {
         // SQL query statement 
-        $stmt = $conn->prepare("select first_name and last_name from contacts where first_name like ? or last_name like ?");
+        $stmt = $conn->prepare(
+            "SELECT id, first_name, last_name, phone, email, address, created_at # returns these columns for each matching row 
+            FROM contacts # pull data from contacts table
+            WHERE user_id = ? # only returns contacts that belongs to a specific user -> ? will be replaced with current user's ID
+            AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE?)" # Second filter, match search term in at least one of these fields
+        );
         // Search through first and last names, allowing partial matches
         $namePattern = "%" . $inData["search"] . "%";
-        $stmt->blind_param("ss", $namePattern, $namePatern);
+        $stmt->bind_param("ss", $namePattern, $namePattern);
         $stmt->execute();
 
         // Get set of results

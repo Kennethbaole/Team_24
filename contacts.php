@@ -127,4 +127,6 @@ switch ($reqMethod)
         break;
 }
 
+$conn->close();
+
 ?>

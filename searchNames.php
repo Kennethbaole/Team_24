@@ -29,10 +29,10 @@ else
 {
     // SQL query statement 
     $stmt = $conn->prepare(
-        "SELECT id, first_name, last_name, phone, email, address, created_at /* returns these columns for each matching row */
-        FROM contacts /* pull data from contacts table */
-        WHERE user_id = ? /* only returns contacts that belongs to a specific user -> ? will be replaced with current user's ID */
-        AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)" /* Second filter, match search term in at least one of these fields */
+        "SELECT id, first_name, last_name, phone, email, address, created_at 
+        FROM contacts 
+        WHERE user_id = ? 
+        AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)" 
     );
     // Search through first and last names, allowing partial matches
     $searchPattern = "%" . $search . "%"

@@ -18,7 +18,8 @@ $inData = getRequestInfo();
 $searchResults = "";
 $searchCount = 0;
 
-$conn = new mysqli($host, $db_name, $username, $password);
+$conn = new mysqli($host, $username, $password, $db_name);
+
 
     // If connection error (database failure)
 if ($conn->connect_error)
@@ -35,10 +36,10 @@ else
         AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)" 
     );
 
-    $user_id = $inData["user_id"]
+    $user_id = $inData["user_id"];
     $search = $inData["search"];
     // Search through first and last names, allowing partial matches
-    $searchPattern = "%" . $search . "%"
+    $searchPattern = "%" . $search . "%";
     // $namePattern = "%" . $inData["search"] . "%";
 
     $stmt->bind_param("issss", $user_id, $searchPattern, $searchPattern, $searchPattern, $searchPattern);

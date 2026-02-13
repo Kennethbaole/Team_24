@@ -1,5 +1,11 @@
 <?php
 
+// cors headers 
+header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
 $host = "localhost";
 $username = "Team24";
 $password = "databasekey";

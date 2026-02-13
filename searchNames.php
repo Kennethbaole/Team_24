@@ -52,7 +52,7 @@ else
 
     if ($searchCount == 0)
     {
-        returnWithError("No Records Found")
+        returnWithError("No Records Found");
     }
     else
     {
@@ -82,7 +82,7 @@ function returnWithError($err)
 
 function returnWithInfo($searchResults)
 {
-    $retVal = '{"results":[' . $searchResults . '],"errpr":""}';
+    $retVal = '{"results":[' . $searchResults . '],"error":""}';
     sendResultInfoAsJson($retVal);
 }
 ?>

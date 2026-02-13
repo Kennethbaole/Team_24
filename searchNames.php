@@ -32,14 +32,14 @@ else
     $searchPattern = "%" . $search . "%"
     // $namePattern = "%" . $inData["search"] . "%";
 
-    $stmt->bind_param("ss", $namePattern, $namePattern);
+    $stmt->bind_param("ss", $user_id, $searchPattern, $searchPattern, $searchPattern, $searchPattern);
     $stmt->execute();
 
     // Get set of results
     $result = $stmt->get_result();
 
     // Loop through results
-    while($row = $stmt->fetch_assoc())
+    while($row = $result->fetch_assoc())
     {
         if ($searchCount > 0)
         {
@@ -47,7 +47,7 @@ else
         }
 
         $searchCount++;
-        $searchResults.= '"' . $row["first_name"] . $row["last_name" . '"'];
+        $searchResults.= '"' . $row["first_name"] . $row["last_name"] . '"';
     }
 
     if ($searchCount == 0)

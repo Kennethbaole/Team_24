@@ -7,8 +7,8 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 $host = "localhost";
-$username = "Team24";
-$password = "databasekey";
+$username = "root";
+$password = "Team24POOSD";
 $db_name = "contact_manager";
 
 //Read incoming request data
@@ -34,6 +34,9 @@ else
         WHERE user_id = ? 
         AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)" 
     );
+
+    $user_id = $inData["user_id"]
+    $search = $inData["search"];
     // Search through first and last names, allowing partial matches
     $searchPattern = "%" . $search . "%"
     // $namePattern = "%" . $inData["search"] . "%";

@@ -2,7 +2,7 @@
 
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json');
-header('Access-Control-Allow-Method: GET, POST, PUT, DELETE');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: ');
 
 $host = "localhost";
@@ -13,12 +13,14 @@ $db_name = "contact_manager";
 // Test require_once statement to avoid establishing another connection
 // Allow API to fetch the right contacts database from the user_id var in users.php
 // Discard if test fails
-require_once 'users.php';
+//require_once 'users.php';
+
+$conn = new mysqli($host, $username, $password, $db_name);
 
 $reqMethod = $_SERVER["REQUEST_METHOD"];
 
 $data = json_decode(file_get_contents("php://input"), true);
-$user_id = $id; // user_id in contacts table = id in users table
+// $user_id = $id; // user_id in contacts table = id in users table
 
 switch ($reqMethod)
 {
@@ -32,76 +34,94 @@ switch ($reqMethod)
         $searchResults = [];    // result array
 
         // Trim any leading/trailing whitespaces
-        $first_name = trim($data['first_name']) ?? null;
-        $last_name = trim($data['last_name']) ?? null;
-        $phone = trim($data['phone']) ?? null;
-        $email = trim($data['email']) ?? null;
+        $user_id = $data["user_id"];
+        $first_name = isset($data['first_name']) ? trim($data['first_name']) : null;
+        $last_name = isset($data['last_name']) ? trim($data['last_name']) : null;
+        $phone = isset($data['phone']) ? trim($data['phone']) : null;
+        $email = isset($data['email']) ? trim($data['email']) : null;
 
         // Search for existing entries that matches an info
         if ($first_name && $last_name)
         {
-                $stmt = $conn->prepare("SELECT * FROM contacts WHERE user_id = ? AND first_name = ? AND last_name = ?");
-                $stmt -> bind_param("iss", $user_id, $first_name, $last_name);
-                $stmt -> execute();
-                $result = $stmt -> get_result();
-        
-                // Entries with matching names found = display them!
-                while ($row = $result -> fetch_assoc())
+            $stmt = $conn->prepare("SELECT * FROM contacts WHERE user_id = ? AND first_name = ? AND last_name = ?");
+            
+            if (!$stmt) 
+            {
+                http_response_code(500);
+                echo json_encode(["success"=>false, "error"=>"Prepare failed", "details"=>$conn->error]);
+                break;
+            }
+            
+            $stmt -> bind_param("iss", $user_id, $first_name, $last_name);
+            $stmt -> execute();
+            
+            // Find any matches
+            $stmt -> store_result();
+            if ($stmt->num_rows > 0) 
+            {
+                http_response_code(409);
+                echo json_encode(["success"=>false, "message"=>"User is already in contacts"]);
+                $stmt->close();
+                break; 
+            }
+
+            // No matching entries found!
+            else
+            {
+                $errors = [];
+                if ($phone || $email)
                 {
-                    $searchResults[] = $row;
-                    $searchCount++;
-                }
-                if ($searchCount > 0)
-                {
-                    http_response_code(409);    // 409 - Conflict
-                    echo "User is already in contacts";
-                    echo json_encode($searchResults);
+                    /*
+                    // Validate phone number & email first!
+                    if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) // Email must have @"domain"."abc" tail format
+                    {
+                        $errors[] = "Invalid email format!";
+                    }
+                    if ($phone && !preg_match("/^\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/", $phone))    // Allow multiple phone number formats, i.e. (xxx) xxx-xxxx, xxx-xxx-xxxx,xxxxxxxxxx, etc.
+                    {       
+                            $errors[] = "Phone number must be 10 digits!";
+                    }
+
+                    // Display format error messages until user fixes them
+                    if (!empty($errors))
+                    {
+                        http_response_code(422);    // 422 - Unprocessable Entity
+                        echo json_encode(["Success" => false, "Errors" => $errors]);
+                        exit();
+                    }
+                    */
+
+                    // Phone number and/or email present and validated = good to add!
+                    $stmt = $conn->prepare("INSERT INTO contacts (user_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)");
+                    if (!$stmt) {
+                        http_response_code(500);
+                        echo json_encode([
+                            "success" => false,
+                            "error" => "Prepare failed",
+                            "details" => $conn->error
+                        ]);
+                        break;
+                    }
+                    
+                    $stmt->bind_param("issss", $user_id, $first_name, $last_name, $phone, $email);
+                    $stmt->execute();
+                
+                    http_response_code(200);    // 200 - Success
+                    echo "Contact added successfully";
                     $stmt->close();
-                    // break;
                 }
 
-                // No matching entries found!
+                // No phone number and email added!
                 else
                 {
-                    $errors = [];
-                    if ($phone || $email)
-                    {
-                        // Validate phone number & email first!
-                        if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) // Email must have @"domain"."abc" tail format
-                        {
-                            $errors[] = "Invalid email format!";
-                        }
-                        if ($phone && !preg_match("/^\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/", $phone))    // Allow multiple phone number formats, i.e. (xxx) xxx-xxxx, xxx-xxx-xxxx,xxxxxxxxxx, etc.
-                        {       
-                            $errors[] = "Phone number must be 10 digits!";
-                        }
-
-                        // Display format error messages until user fixes them
-                        if (!empty($errors))
-                            {
-                                http_response_code(422);    // 422 - Unprocessable Entity
-                                echo json_encode(["Success" => false, "Errors" => $errors]);
-                                exit();
-                            }
-
-                        // Phone number and/or email present and validated = good to add!
-                        $stmt = $conn->prepare("INSERT INTO contacts (user_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)");
-                        $stmt->bind_param("issss", $user_id, $first_name, $last_name, $phone, $email);
-                        $stmt->execute();
-                
-                        http_response_code(200);    // 200 - Success
-                        echo "Contact added successfully";
-                        $stmt->close();
-                    }
-
-                    // No phone number and email added!
-                    else
-                    {
-                        $errors[] = "Phone number or email required!";
-                        echo json_ecode($errors);
-                        exit(); 
-                    }
+                    $errors[] = "Phone number or email required!";
+                    http_response_code(422);
+                    echo json_encode(["success" => false, "errors" => $errors]);
+                    //exit(); 
                 }
+
+                break;
+            }
         }
 
         // No name added!
@@ -109,8 +129,10 @@ switch ($reqMethod)
         {
             http_response_code(400);    // 400 - Bad Request
             echo "Full name required!";
-            exit();
+            //exit();
         }
+
+        break;
 
 
     // =========================== //
@@ -138,7 +160,7 @@ switch ($reqMethod)
                 $searchLastName = '%' . $last_name . '%';
                 $searchPhone = '%' . $phone . '%';
                 $searchEmail = '%' . $email . '%';
-                $stmt -> bind_param("issss", $user_id, $searchFirstName, $searchLastName, $searchPhone, $searchEmail)
+                $stmt -> bind_param("issss", $user_id, $searchFirstName, $searchLastName, $searchPhone, $searchEmail);
                 $stmt -> execute();
                 $result = $stmt -> get_result();
 

@@ -3,7 +3,7 @@
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: ');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 $host = "localhost";
 $username = "Team24";
@@ -18,6 +18,12 @@ $db_name = "contact_manager";
 $conn = new mysqli($host, $username, $password, $db_name);
 
 $reqMethod = $_SERVER["REQUEST_METHOD"];
+
+// Handle pre-flight
+if ($reqMethod === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
 
 $data = json_decode(file_get_contents("php://input"), true);
 // $user_id = $id; // user_id in contacts table = id in users table
@@ -106,7 +112,7 @@ switch ($reqMethod)
                     $stmt->bind_param("issss", $user_id, $first_name, $last_name, $phone, $email);
                     $stmt->execute();
                 
-                    http_response_code(200);    // 200 - Success
+                    http_response_code(201);    // 201 - Success
                     echo "Contact added successfully";
                     $stmt->close();
                 }
@@ -143,76 +149,93 @@ switch ($reqMethod)
         $searchCount = 0;       // # of results found
         $searchResults = [];    // result array
 
-        // Get searched contact info
-        if ($data)
+        // Trim any leading/trailing whitespaces
+        $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id']
+                : (isset($data['user_id']) ? (int)$data['user_id'] : 0);
+
+        if (!$user_id) 
         {
-            // Trim any leading/trailing whitespaces
-            $first_name = trim($data["first_name"]) ?? null;
-            $last_name = trim($data["last_name"]) ?? null;
-            $phone = trim($data["phone"]) ?? null;
-            $email = trim($data["email"]) ?? null;
+            http_response_code(400);
+            echo json_encode(["success"=>false, "error"=>"user_id is required"]);
+            break;
+        }
 
-            if ($first_name || $last_name || $phone || $email)
+        // Get search pattern (one string)
+        $search = isset($_GET['search']) ? trim($_GET['search'])
+                : (isset($data['search']) ? trim($data['search']) : '');
+
+        // If search is a nonempty string
+        if ($search !== '')
+        {
+            // Search w/ partial matching
+            $stmt = $conn -> prepare("SELECT id, first_name, last_name, phone, email 
+                                    FROM contacts 
+                                    WHERE user_id = ? AND (first_name LIKE ? OR last_name LIKE ?)");
+            
+            if (!$stmt)
             {
-                // Search w/ partial matching
-                $stmt = $conn -> prepare("SELECT * from contacts WHERE user_id = ? AND (first_name LIKE ? OR last_name LIKE ? OR phone LIKE ? OR email LIKE ?)");
-                $searchFirstName = '%' . $first_name . '%';
-                $searchLastName = '%' . $last_name . '%';
-                $searchPhone = '%' . $phone . '%';
-                $searchEmail = '%' . $email . '%';
-                $stmt -> bind_param("issss", $user_id, $searchFirstName, $searchLastName, $searchPhone, $searchEmail);
-                $stmt -> execute();
-                $result = $stmt -> get_result();
-
-                // Add search result to array
-                while ($row = $result -> fetch_assoc())
-                {
-                    $searchResults[] = $row;
-                    $searchCount++;
-                }
-
-                // No matching contacts found
-                if ($searchCount == 0)
-                {
-                    echo "No matching phone number nor email found!";
-                }
-
-                else
-                {
-                    echo $searchCount . " results found:";
-                    echo json_encode($searchResults);
-                    $stmt -> close();
-                }
+                http_response_code(500);
+                echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
+                break;
             }
-        } 
-        // Get all contact infos
-        else
-        {
-            $stmt = $conn -> prepare("SELECT * from contacts WHERE user_id = $user_id");
-            $stmt -> execute();
-            $result = $stmt -> get_result();
 
-            while ($row = $result -> fetch_assoc())
+            // Search through both first and last names
+            $pattern = '%' . $search . '%';
+            $stmt -> bind_param("iss", $user_id, $pattern, $pattern);
+            $stmt -> execute();
+
+            $stmt->bind_result($id, $fn, $ln, $ph, $em);
+
+            // Display matches
+            while ($stmt->fetch())
             {
-                $searchResults[] = $row;
+                $searchResults[] = [
+                        "id" => $id,
+                        "first_name" => $fn,
+                        "last_name" => $ln,
+                        "phone" => $ph,
+                        "email" => $em
+                ];
                 $searchCount++;
             }
-
-            // Empty contact infos
-            if ($searchCount == 0)
-            {
-                echo "No contact info found!";
-            }
-            // Return all contact infos as JSON
-            else
-            {
-                echo $searchCount . " results found:";
-                echo json_encode($searchResults);
-            }
-
-            // Close connection
-            $stmt -> close();
         } 
+        // Get all contact infos if pattern is empty
+        else
+        {
+            $stmt = $conn -> prepare("SELECT id, first_name, last_name, phone, email 
+                                    from contacts 
+                                    WHERE user_id = ?");
+            
+            if (!$stmt)
+            {
+                http_response_code(500);
+                echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
+                break;
+            }
+
+            $stmt->bind_param("i", $user_id);
+            $stmt -> execute();
+            $stmt->bind_result($id, $fn, $ln, $ph, $em);
+
+            while ($stmt->fetch())
+            {
+                $searchResults[] = [
+                        "id" => $id,
+                        "first_name" => $fn,
+                        "last_name" => $ln,
+                        "phone" => $ph,
+                        "email" => $em
+                ];
+                $searchCount++;
+            }
+        }
+
+        // Close connection
+        $stmt->close();
+        
+        http_response_code(200);
+        echo json_encode(["success" => true, "count" => $searchCount, "results" => $searchResults]);
+        
         break;
     
     // ========================= //

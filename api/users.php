@@ -2,101 +2,104 @@
 
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json');
-header('Access-Control-Allow-Method: GET, POST, PUT, DELETE');
-header('Access-Control-Allow-Headers: ');
+header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Headers: Content-Type');
 
 $host = "localhost";
 $username = "Team24";
 $password = "databasekey";
 $db_name = "contact_manager";
 
-
 $conn = new mysqli($host, $username, $password, $db_name);
 
-if ($conn -> connect_error) 
-{
+if ($conn->connect_error) {
     http_response_code(500);
-    echo json_encode(["message" => "Database connection failed!"]);
-    // exit();
+    echo json_encode(["message" => "Database connection failed"]);
+    exit();
 }
 
-// Get response method
-$reqMethod = $_SERVER["REQUEST_METHOD"];
-
-// Retrieve user login input as JSON object
 $data = json_decode(file_get_contents("php://input"), true);
 
-switch ($reqMethod)
-{
-    // ================== //
-    // GET - Read - Login
-    // ================== //
-
-    case 'GET':
-        // Get data from JSON
-        $username = $data['username'];
-        $password = $data['password'];
-
-        // Prepare query, execute & get result from query
-        $stmt = $conn -> prepare("SELECT * from users WHERE username = ? AND password_hash = ?");
-        $stmt -> bind_param("ss", $username, $password);
-        $stmt -> execute();
-        $result = $stmt -> get_result();
-
-        // Retrieve ID from query result, if exists
-        if ($row = $result -> fetch_assoc()) 
-        {
-            // Output the user ID
-            $user_id = $row['id'];
-            echo "The user ID is: " . $user_id;
-        }
-        else 
-        {
-            // Display message
-            echo "Incorrect username or password.";
-        }
-        
-        //echo "GET Successful";
-        break;
-        
-    // ====================== //
-    // POST - Update - Signup
-    // ====================== //
-
-    case 'POST':
-        // Get data from JSON
-        $username = $data['username'];
-        $password = $data['password'];
-        $first_name = $data['first_name'];
-        $last_name = $data['last_name'];
-        $email = $data['email'];
-
-        // Check for existing entry with matching username
-        $stmt = $conn -> prepare("SELECT * from users WHERE username = ?");
-        $stmt -> bind_param("s", $username);
-        $stmt -> execute();
-        $result = $stmt -> get_result();
-
-        // If no existing matching username found, perform insert into database
-        if ($result->num_rows == 0)
-        {
-            $stmt = $conn -> prepare("INSERT INTO users (first_name, last_name, username, password_hash, email) VALUES (?,?,?,?,?)");
-            $stmt -> bind_param("sssss", $first_name, $last_name, $username, $password, $email);
-            $stmt -> execute();
-            $stmt -> close();
-
-            // Display message + new user ID to add information
-            echo "New account added successfully! {User ID: " . $conn->insert_id . "}";
-        }
-        else
-        {
-            // Display message
-            echo "Username is taken!";
-        }
-        break;
-    
-    $conn -> close();
-
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode(["message" => "Invalid request method"]);
+    exit();
 }
 
+/* LOGIN */
+if (isset($data['username']) && isset($data['password']) && !isset($data['first_name'])) {
+
+    $username = $data['username'];
+    $password = $data['password'];
+
+    $stmt = $conn->prepare("SELECT id, password_hash FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+
+        if (password_verify($password, $row['password_hash'])) {
+            echo json_encode([
+                "success" => true,
+                "user_id" => $row['id']
+            ]);
+        } else {
+            echo json_encode(["message" => "Incorrect username or password"]);
+        }
+
+    } else {
+        echo json_encode(["message" => "Incorrect username or password"]);
+    }
+
+    $stmt->close();
+    $conn->close();
+    exit();
+}
+
+/* REGISTER */
+if (
+    isset($data['username']) &&
+    isset($data['password']) &&
+    isset($data['first_name']) &&
+    isset($data['last_name']) &&
+    isset($data['email'])
+) {
+
+    $username = $data['username'];
+    $password = $data['password'];
+    $first_name = $data['first_name'];
+    $last_name = $data['last_name'];
+    $email = $data['email'];
+
+    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        echo json_encode(["message" => "Username is taken"]);
+        $stmt->close();
+        $conn->close();
+        exit();
+    }
+
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, username, password_hash, email) VALUES (?,?,?,?,?)");
+    $stmt->bind_param("sssss", $first_name, $last_name, $username, $hashedPassword, $email);
+    $stmt->execute();
+
+    echo json_encode([
+        "success" => true,
+        "user_id" => $conn->insert_id
+    ]);
+
+    $stmt->close();
+    $conn->close();
+    exit();
+}
+
+echo json_encode(["message" => "Invalid request"]);
+
+$conn->close();
 ?>

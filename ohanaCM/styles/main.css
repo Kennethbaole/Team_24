@@ -556,3 +556,17 @@ img {
     flex-direction: column;
   }
 }
+
+.avatar{
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  background: #f3f4f6;
+  user-select: none;
+}

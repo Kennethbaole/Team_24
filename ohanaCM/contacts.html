@@ -26,6 +26,7 @@
       </div>
       <div class="actions">
         <input class="search-box" id="searchInput" placeholder="Search Contacts" oninput="filterContacts()" />
+        <button class="create-btn" onclick="openModal('newContactModal')">+ New</button>
       </div>
     </div>
 
@@ -75,14 +76,7 @@
         <input id="newPhone" type="tel" />
       </div>
 
-      <div class="form-group-full photo-upload-group">
-        <label>Photo</label>
-        <button class="photo-btn" type="button" onclick="document.getElementById('newPhoto').click()">
-          Upload Photo
-        </button>
-        <input type="file" id="newPhoto" style="display:none;" />
-        <p class="photo-text" id="newPhotoText">No file chosen</p>
-      </div>
+
 
       <button class="modal-submit create-btn-large">Create</button>
     </form>
@@ -121,15 +115,6 @@
       <div class="form-group-full">
         <label>Phone</label>
         <input id="editPhone" type="tel" />
-      </div>
-
-      <div class="form-group-full photo-upload-group">
-        <label>Photo</label>
-        <button class="photo-btn" type="button" onclick="document.getElementById('editPhoto').click()">
-          Upload Photo
-        </button>
-        <input type="file" id="editPhoto" style="display:none;" />
-        <p class="photo-text" id="editPhotoText">No file chosen</p>
       </div>
 
       <div style="display:flex; gap:1rem; justify-content:flex-end;">
@@ -172,22 +157,31 @@ document.getElementById("newContactForm").addEventListener("submit", function(e)
     last: document.getElementById("newLastName").value,
     address: document.getElementById("newAddress").value,
     email: document.getElementById("newEmail").value,
-    phone: document.getElementById("newPhone").value,
-    photo: document.getElementById("newPhoto").files[0]
-      ? URL.createObjectURL(document.getElementById("newPhoto").files[0])
-      : ""
+    phone: document.getElementById("newPhone").value
   })
   resetNewForm()
   renderContacts()
   closeModal("newContactModal")
 })
 
-document.getElementById("newPhoto").addEventListener("change", function() {
-  const fileText = this.files[0] ? this.files[0].name : "No file chosen"
-  document.getElementById("newPhotoText").textContent = fileText
-})
+function getInitials(first, last) {
+  const f = (first || "").trim();
+  const l = (last || "").trim();
+
+  if (f && l) return (f[0] + l[0]).toUpperCase();
+  if (f) return f.slice(0, 2).toUpperCase();
+  if (l) return l.slice(0, 2).toUpperCase();
+  return "??";
+}
+
 
 function renderContacts() {
+  if (contacts.length === 0) {
+    document.getElementById("noContactsView").classList.remove("hidden");
+    document.getElementById("tableView").classList.add("hidden");
+    document.getElementById("tableView").innerHTML = "";
+    return;
+  }
   document.getElementById("noContactsView").classList.add("hidden")
   const container = document.getElementById("tableView")
   container.classList.remove("hidden")
@@ -197,7 +191,7 @@ function renderContacts() {
       <thead>
         <tr>
           <th></th>
-          <th>Picture</th>
+          <th></th>
           <th>Name</th>
           <th>Address</th>
           <th>Email</th>
@@ -209,10 +203,11 @@ function renderContacts() {
   `
 
   contacts.forEach((c, i) => {
+    const initials = getInitials(c.first, c.last);
     html += `
       <tr>
         <td><button class="edit-btn" onclick="openEdit(${i})">✎</button></td>
-        <td><img src="${c.photo}" class="small-pic"></td>
+        <td><div class="avatar">${initials}</div></td>
         <td>${c.first} ${c.last}</td>
         <td>${c.address}</td>
         <td>${c.email}</td>
@@ -262,7 +257,6 @@ function deleteContact() {
 
 function resetNewForm() {
   document.getElementById("newContactForm").reset()
-  document.getElementById("newPhotoText").textContent = "No file chosen"
 }
 
 function filterContacts() {
@@ -273,6 +267,7 @@ function filterContacts() {
     row.style.display = text.includes(q) ? "" : "none"
   })
 }
+renderContacts();
 </script>
 
 </body>

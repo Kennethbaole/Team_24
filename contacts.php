@@ -39,7 +39,7 @@ switch ($reqMethod)
         $searchCount = 0;       // # of results found
         $searchResults = [];    // result array
 
-        $user_id = $data["user_id"];
+        $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0; 
         // Trim any leading/trailing whitespaces
         $first_name = isset($data['first_name']) ? trim($data['first_name']) : null;
         $last_name = isset($data['last_name']) ? trim($data['last_name']) : null;
@@ -149,7 +149,6 @@ switch ($reqMethod)
         $searchCount = 0;       // # of results found
         $searchResults = [];    // result array
 
-        // If user id not found, set to 0
         $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id']
                 : (isset($data['user_id']) ? (int)$data['user_id'] : 0);
 
@@ -182,7 +181,13 @@ switch ($reqMethod)
             // Search through both first and last names
             $pattern = '%' . $search . '%';
             $stmt -> bind_param("iss", $user_id, $pattern, $pattern);
-            $stmt -> execute();
+            if (!$stmt->execute()) 
+            {
+                http_response_code(500);
+                echo json_encode(["success"=>false, "error"=>"Query failed", "details"=>$stmt->error]);
+                $stmt->close();
+                break;
+            }
 
             $stmt->bind_result($id, $fn, $ln, $ph, $em);
 
@@ -198,6 +203,8 @@ switch ($reqMethod)
                 ];
                 $searchCount++;
             }
+
+            $stmt->close();
         } 
         // Get all contact infos if pattern is empty
         else
@@ -214,7 +221,14 @@ switch ($reqMethod)
             }
 
             $stmt->bind_param("i", $user_id);
-            $stmt -> execute();
+            if (!$stmt->execute()) 
+            {
+                http_response_code(500);
+                echo json_encode(["success"=>false, "error"=>"Query failed", "details"=>$stmt->error]);
+                $stmt->close();
+                break;
+            }
+
             $stmt->bind_result($id, $fn, $ln, $ph, $em);
 
             while ($stmt->fetch())
@@ -228,10 +242,9 @@ switch ($reqMethod)
                 ];
                 $searchCount++;
             }
-        }
 
-        // Close connection
-        $stmt->close();
+            $stmt->close();
+        }
         
         http_response_code(200);
         echo json_encode(["success" => true, "count" => $searchCount, "results" => $searchResults]);
@@ -252,7 +265,7 @@ switch ($reqMethod)
         $phone = trim($data['phone'] ?? '') ?: null;
         $email = trim($data['email'] ?? '') ?: null;
 
-        // If either a user id or contact id is provided
+        // If either a user id or contact id is missing
         if (!$user_id || !$id)
         {
             http_response_code(400);
@@ -274,7 +287,14 @@ switch ($reqMethod)
         }
 
         $exists->bind_param("ii", $user_id, $id);
-        $exists->execute();
+        if (!$exists->execute())
+        {
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" => "Existence check failed", "details" => $exists->error]);
+            $exists->close();
+            break;
+        }
+        
         $exists->store_result();
 
         // If contact does not exist, theres nothing to update
@@ -369,29 +389,79 @@ switch ($reqMethod)
     // ============================== //
 
     case 'DELETE':
-        $user_id = $data['user_id'];
-        $first_name = $data['first_name'];
-        $last_name = $data['last_name'];    
+        // If ids not found, set them to 0 (false)
+        $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0; 
+        $id = isset($data['id']) ? (int)$data['id'] : 0; // Index of edited entry in contacts tables   
 
-        $stmt = $conn->prepare("DELETE FROM contacts WHERE user_id = ? AND first_name = ? AND last_name = ?");
-        $stmt->bind_param("sss", $user_id, $first_name, $last_name);
+        // If either a user id or contact id is missing
+        if (!$user_id || !$id)
+        {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "User ID and Contact ID are required"]);
+            break;
+        }
 
-        if (!$stmt->execute()) 
+        // Check if the contact actually exists
+        $exists = $conn->prepare("SELECT 1
+                                FROM contacts
+                                WHERE user_id = ? AND id = ?
+                                LIMIT 1");
+        
+        if (!$exists)
         {
             http_response_code(500);
-            echo "Delete failed";
+            echo json_encode(["success" => false, "error" =>"Prepare failed", "details" => $conn->error]);
+            break;
+        }
+
+        $exists->bind_param("ii", $user_id, $id);
+        if (!$exists->execute())
+        {
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" => "Existence check failed", "details" => $exists->error]);
+            $exists->close();
+            break;
+        }
+
+        $exists->store_result();
+
+        // If contact does not exist, theres nothing to delete
+        if ($exists->num_rows === 0) 
+        {
+            http_response_code(404);
+            echo json_encode(["success" => false, "message" => "Contact not found"]);
+            $exists->close();
+            break;
+        }
+
+        $exists->close();
+
+        // Delete contact
+        $stmt = $conn->prepare("DELETE FROM contacts
+                                WHERE user_id = ? AND id = ?");
+        
+        if (!$stmt) 
+        {
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
+            break;
+        }
+
+        $stmt->bind_param("ii", $user_id, $id);
+
+        if (!$stmt->execute())
+        {
+            http_response_code(500);
+            echo json_encode(["success" => false, "message" => "Delete failed", "details" => $stmt->error]);
             $stmt->close();
             break;
         }
 
-        if ($stmt->affected_rows === 0) 
-        {
-            http_response_code(404);
-            echo "No contact found";
-            $stmt->close();
-            break;
-        }
-        
+        $stmt->close();
+
+        http_response_code(200);
+        echo json_encode(["success" => true, "message" => "Contact deleted successfully"]);
+
         break;
     
     default:

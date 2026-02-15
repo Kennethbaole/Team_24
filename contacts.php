@@ -39,8 +39,8 @@ switch ($reqMethod)
         $searchCount = 0;       // # of results found
         $searchResults = [];    // result array
 
-        // Trim any leading/trailing whitespaces
         $user_id = $data["user_id"];
+        // Trim any leading/trailing whitespaces
         $first_name = isset($data['first_name']) ? trim($data['first_name']) : null;
         $last_name = isset($data['last_name']) ? trim($data['last_name']) : null;
         $phone = isset($data['phone']) ? trim($data['phone']) : null;
@@ -149,7 +149,7 @@ switch ($reqMethod)
         $searchCount = 0;       // # of results found
         $searchResults = [];    // result array
 
-        // Trim any leading/trailing whitespaces
+        // If user id not found, set to 0
         $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id']
                 : (isset($data['user_id']) ? (int)$data['user_id'] : 0);
 
@@ -243,36 +243,125 @@ switch ($reqMethod)
     // ========================= //
 
     case 'PUT':
-        $id = $data["id"];      // Index of edited entry in contacts table
-        $first_name = trim($data['first_name']);
-        $last_name = trim($data['last_name']);    
-        $phone = trim($data['phone']);
-        $email = trim($data['email']);
+        // If ids not found, set them to 0 (false)
+        $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0; 
+        $id = isset($data['id']) ? (int)$data['id'] : 0; // Index of edited entry in contacts tables
+        // Missing or empty strings get set to null
+        $first_name = trim($data['first_name'] ?? '') ?: null;
+        $last_name = trim($data['last_name'] ?? '') ?: null;
+        $phone = trim($data['phone'] ?? '') ?: null;
+        $email = trim($data['email'] ?? '') ?: null;
 
-        $stmt = $conn->prepare("UPDATE contacts SET first_name = ?, last_name = ?, phone = ?, email = ? WHERE user_id = ? AND id = ?");
-        $stmt->bind_param("ssssii",  $first_name, $last_name, $phone, $email, $user_id, $id);
+        // If either a user id or contact id is provided
+        if (!$user_id || !$id)
+        {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "User ID and Contact ID are required"]);
+            break;
+        }
+
+        // Check if the contact actually exists
+        $exists = $conn->prepare("SELECT 1
+                                FROM contacts
+                                WHERE user_id = ? AND id = ?
+                                LIMIT 1");
         
+        if (!$exists)
+        {
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" =>"Prepare failed", "details" => $conn->error]);
+            break;
+        }
+
+        $exists->bind_param("ii", $user_id, $id);
+        $exists->execute();
+        $exists->store_result();
+
+        // If contact does not exist, theres nothing to update
+        if ($exists->num_rows === 0) 
+        {
+            http_response_code(404);
+            echo json_encode(["success" => false, "message" => "Contact not found"]);
+            $exists->close();
+            break;
+        }
+
+        $exists->close();
+
+        // If first and last name are not inputted
+        if ($first_name === null || $last_name === null)
+        {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "Full name required!"]);
+            break;
+        }
+
+        // If a neither a phone number nor email is provided
+        if ($phone === null && $email === null)
+        {
+            http_response_code(422);
+            echo json_encode(["success" => false, "errors" => "Phone number or email required!"]);
+            break;
+        }
+
+        // Check if first name and last name is already taken
+        // Excludes the contact being updated 
+        $stmt = $conn -> prepare("SELECT 1
+                                FROM contacts
+                                WHERE user_id = ? AND first_name = ? AND last_name = ? AND id <> ?
+                                LIMIT 1");
+
+        if (!$stmt) 
+        {
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
+            break;
+        }
+
+        $stmt->bind_param("issi", $user_id, $first_name, $last_name, $id);
+        $stmt->execute();
+        $stmt->store_result();
+
+        // The new name is already taken by another contact, prevent update
+        if ($stmt->num_rows > 0) 
+        {
+            http_response_code(409);
+            echo json_encode(["success" => false, "message" => "A contact with this first and last name already exists"]);
+            $stmt->close();
+            break;
+        }
+        
+        $stmt->close();
+
+        // Update the contact
+        $stmt  = $conn->prepare("UPDATE contacts
+                                SET first_name = ?, last_name = ?, phone = ?, email = ?
+                                WHERE user_id = ? AND id = ?");
+
+        if (!$stmt) 
+        {
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
+            break;
+        }
+
+        $stmt->bind_param("ssssii", $first_name, $last_name, $phone, $email, $user_id, $id);
+
         if (!$stmt->execute()) 
         {
             http_response_code(500);
-            echo "Update failed";
-            // break;
+            echo json_encode(["success" => false, "message" => "Update failed", "details" => $stmt->error]);
+            $stmt->close();
+            break;
         }
-        else if ($stmt->affected_rows === 0) 
-        {
-            http_response_code(404);
-            echo "No contact found";
-            // break;
-        }
-        else
-        {
-            http_response_code(200);
-            echo "Contact updated successfully";
-        }
+
+        // affected_rows can be 0 if values are unchanged; treat as success
+        http_response_code(200);
+        echo json_encode(["success" => true,
+                        "message" => ($stmt->affected_rows > 0) ? "Contact updated successfully" : "No changes (already up to date)"]);
 
         // Close connection
         $stmt->close();
-
         break;
     
     // ============================== //

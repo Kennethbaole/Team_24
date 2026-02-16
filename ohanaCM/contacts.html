@@ -255,7 +255,7 @@ function renderContacts() {
         <td><button class="edit-btn" onclick="openEdit(${i})">✎</button></td>
           <td><div class="avatar">${initials}</div></td>
           <td>${capitalizeName(c.first)} ${capitalizeName(c.last)}</td>
-          <td>${c.address}</td>
+          <td>${capitalizeName(c.address)}</td>
           <td>${c.email}</td>
           <td>${formatPhone(c.phone)}</td>
           <td>${new Date().toLocaleDateString()}</td>

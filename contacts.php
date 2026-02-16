@@ -40,11 +40,12 @@ switch ($reqMethod)
         $searchResults = [];    // result array
 
         $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0; 
-        // Trim any leading/trailing whitespaces
-        $first_name = isset($data['first_name']) ? trim($data['first_name']) : null;
-        $last_name = isset($data['last_name']) ? trim($data['last_name']) : null;
-        $phone = isset($data['phone']) ? trim($data['phone']) : null;
-        $email = isset($data['email']) ? trim($data['email']) : null;
+        // Missing or empty strings get set to null
+        $first_name = trim($data['first_name'] ?? '') ?: null;
+        $last_name = trim($data['last_name'] ?? '') ?: null;
+        $phone = trim($data['phone'] ?? '') ?: null;
+        $email = trim($data['email'] ?? '') ?: null;
+        $address = trim($data['address'] ?? '') ?: null;
 
         // Search for existing entries that matches an info
         if ($first_name && $last_name)
@@ -74,8 +75,7 @@ switch ($reqMethod)
             // No matching entries found!
             else
             {
-                $errors = [];
-                if ($phone || $email)
+                if ($phone || $email || $address)
                 {
                     /*
                     // Validate phone number & email first!
@@ -97,8 +97,8 @@ switch ($reqMethod)
                     }
                     */
 
-                    // Phone number and/or email present and validated = good to add!
-                    $stmt = $conn->prepare("INSERT INTO contacts (user_id, first_name, last_name, phone, email) VALUES (?,?,?,?,?)");
+                    // A phone number, email, or address present and validated = good to add!
+                    $stmt = $conn->prepare("INSERT INTO contacts (user_id, first_name, last_name, phone, email, address) VALUES (?,?,?,?,?, ?)");
                     if (!$stmt) {
                         http_response_code(500);
                         echo json_encode([
@@ -109,20 +109,19 @@ switch ($reqMethod)
                         break;
                     }
                     
-                    $stmt->bind_param("issss", $user_id, $first_name, $last_name, $phone, $email);
+                    $stmt->bind_param("isssss", $user_id, $first_name, $last_name, $phone, $email, $address);
                     $stmt->execute();
                 
                     http_response_code(201);    // 201 - Success
-                    echo "Contact added successfully";
+                    echo json_encode(["success" => true, "message" => "Contact added successfully"]);
                     $stmt->close();
                 }
 
-                // No phone number and email added!
+                // No phone number, email, or address added!
                 else
                 {
-                    $errors[] = "Phone number or email required!";
                     http_response_code(422);
-                    echo json_encode(["success" => false, "errors" => $errors]);
+                    echo json_encode(["success" => false, "errors" => "Phone number, email, or address required!"]);
                     //exit(); 
                 }
 
@@ -133,8 +132,8 @@ switch ($reqMethod)
         // No name added!
         else
         {
-            http_response_code(400);    // 400 - Bad Request
-            echo "Full name required!";
+            http_response_code(422);    // 400 - Bad Request
+            echo json_encode(["success" => false, "errors" => "Full name required!"]);
             //exit();
         }
 
@@ -167,9 +166,9 @@ switch ($reqMethod)
         if ($search !== '')
         {
             // Search w/ partial matching
-            $stmt = $conn -> prepare("SELECT id, first_name, last_name, phone, email 
+            $stmt = $conn -> prepare("SELECT id, first_name, last_name, phone, email, address
                                     FROM contacts 
-                                    WHERE user_id = ? AND (first_name LIKE ? OR last_name LIKE ?)");
+                                    WHERE user_id = ? AND (first_name LIKE ? OR last_name LIKE ? OR phone like ? OR email like ? or address like ?)");
             
             if (!$stmt)
             {
@@ -178,9 +177,9 @@ switch ($reqMethod)
                 break;
             }
 
-            // Search through both first and last names
+            // Search through first name, last name, phone, email, and address
             $pattern = '%' . $search . '%';
-            $stmt -> bind_param("iss", $user_id, $pattern, $pattern);
+            $stmt -> bind_param("isssss", $user_id, $pattern, $pattern, $pattern, $pattern, $pattern);
             if (!$stmt->execute()) 
             {
                 http_response_code(500);
@@ -189,7 +188,7 @@ switch ($reqMethod)
                 break;
             }
 
-            $stmt->bind_result($id, $fn, $ln, $ph, $em);
+            $stmt->bind_result($id, $fn, $ln, $ph, $em, $ad);
 
             // Display matches
             while ($stmt->fetch())
@@ -199,7 +198,8 @@ switch ($reqMethod)
                         "first_name" => $fn,
                         "last_name" => $ln,
                         "phone" => $ph,
-                        "email" => $em
+                        "email" => $em,
+                        "address" => $ad
                 ];
                 $searchCount++;
             }
@@ -209,7 +209,7 @@ switch ($reqMethod)
         // Get all contact infos if pattern is empty
         else
         {
-            $stmt = $conn -> prepare("SELECT id, first_name, last_name, phone, email 
+            $stmt = $conn -> prepare("SELECT id, first_name, last_name, phone, email, address 
                                     from contacts 
                                     WHERE user_id = ?");
             
@@ -229,7 +229,7 @@ switch ($reqMethod)
                 break;
             }
 
-            $stmt->bind_result($id, $fn, $ln, $ph, $em);
+            $stmt->bind_result($id, $fn, $ln, $ph, $em, $ad);
 
             while ($stmt->fetch())
             {
@@ -238,7 +238,8 @@ switch ($reqMethod)
                         "first_name" => $fn,
                         "last_name" => $ln,
                         "phone" => $ph,
-                        "email" => $em
+                        "email" => $em,
+                        "address" => $ad
                 ];
                 $searchCount++;
             }
@@ -264,6 +265,7 @@ switch ($reqMethod)
         $last_name = trim($data['last_name'] ?? '') ?: null;
         $phone = trim($data['phone'] ?? '') ?: null;
         $email = trim($data['email'] ?? '') ?: null;
+        $address = trim($data['address'] ?? '') ?: null;
 
         // If either a user id or contact id is missing
         if (!$user_id || !$id)
@@ -301,7 +303,7 @@ switch ($reqMethod)
         if ($exists->num_rows === 0) 
         {
             http_response_code(404);
-            echo json_encode(["success" => false, "message" => "Contact not found"]);
+            echo json_encode(["success" => false, "error" => "Contact not found"]);
             $exists->close();
             break;
         }
@@ -316,11 +318,11 @@ switch ($reqMethod)
             break;
         }
 
-        // If a neither a phone number nor email is provided
+        // If a neither a phone number, email, nor address is provided
         if ($phone === null && $email === null)
         {
             http_response_code(422);
-            echo json_encode(["success" => false, "errors" => "Phone number or email required!"]);
+            echo json_encode(["success" => false, "errors" => "Phone number, email, or address required!"]);
             break;
         }
 
@@ -355,7 +357,7 @@ switch ($reqMethod)
 
         // Update the contact
         $stmt  = $conn->prepare("UPDATE contacts
-                                SET first_name = ?, last_name = ?, phone = ?, email = ?
+                                SET first_name = ?, last_name = ?, phone = ?, email = ?, address = ?
                                 WHERE user_id = ? AND id = ?");
 
         if (!$stmt) 
@@ -365,12 +367,12 @@ switch ($reqMethod)
             break;
         }
 
-        $stmt->bind_param("ssssii", $first_name, $last_name, $phone, $email, $user_id, $id);
+        $stmt->bind_param("sssssii", $first_name, $last_name, $phone, $email, $address, $user_id, $id);
 
         if (!$stmt->execute()) 
         {
             http_response_code(500);
-            echo json_encode(["success" => false, "message" => "Update failed", "details" => $stmt->error]);
+            echo json_encode(["success" => false, "error" => "Update failed", "details" => $stmt->error]);
             $stmt->close();
             break;
         }
@@ -410,7 +412,7 @@ switch ($reqMethod)
         if (!$exists)
         {
             http_response_code(500);
-            echo json_encode(["success" => false, "error" =>"Prepare failed", "details" => $conn->error]);
+            echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
             break;
         }
 
@@ -452,7 +454,7 @@ switch ($reqMethod)
         if (!$stmt->execute())
         {
             http_response_code(500);
-            echo json_encode(["success" => false, "message" => "Delete failed", "details" => $stmt->error]);
+            echo json_encode(["success" => false, "error" => "Delete failed", "details" => $stmt->error]);
             $stmt->close();
             break;
         }

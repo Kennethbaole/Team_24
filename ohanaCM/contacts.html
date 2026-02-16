@@ -425,7 +425,7 @@ loadContacts();
 
 const firstName = localStorage.getItem("first_name");
 if (firstName) {
-  document.getElementById("greetingText").textContent = "Aloha, " + firstName;
+  document.getElementById("greetingText").textContent = "Aloha, " + capitalizeName(firstName);
 }
 </script>
 

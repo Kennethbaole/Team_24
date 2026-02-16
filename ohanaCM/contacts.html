@@ -25,7 +25,7 @@
         <p>All Contacts</p>
       </div>
       <div class="actions">
-        <input class="search-box" id="searchInput" placeholder="Search Contacts" oninput="filterContacts()" />
+        <input class="search-box" id="searchInput" placeholder="Search Contacts" oninput="searchContacts()"/>
         <button class="create-btn" onclick="openModal('newContactModal')">+ New</button>
       </div>
     </div>
@@ -285,7 +285,53 @@ function filterContacts() {
     row.style.display = text.includes(q) ? "" : "none"
   })
 }
-renderContacts();
+
+function getUserId() {
+  const id = localStorage.getItem("user_id");
+  return id ? Number(id) : null;
+}
+
+async function loadContacts(search = "") {
+  const user_id = getUserId();
+
+  if (!user_id) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const url = new URL("/api/contacts.php", window.location.origin);
+  url.searchParams.set("user_id", user_id);
+  if (search.trim() !== "") url.searchParams.set("search", search.trim());
+
+  const res = await fetch(url.toString(), { method: "GET" });
+  const data = await res.json();
+
+  if (!data.success) {
+    contacts = [];
+    renderContacts();
+    return;
+  }
+
+  contacts = (data.results || []).map(c => ({
+    id: c.id,
+    first: c.first_name || "",
+    last: c.last_name || "",
+    address: c.address || "",
+    email: c.email || "",
+    phone: c.phone || ""
+  }));
+
+  renderContacts();
+}
+
+let searchTimer = null;
+function searchContacts() {
+  clearTimeout(searchTimer);
+  const q = document.getElementById("searchInput").value;
+  searchTimer = setTimeout(() => loadContacts(q), 250);
+}
+
+loadContacts();
 </script>
 
 </body>

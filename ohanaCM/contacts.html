@@ -150,19 +150,47 @@ function closeModal(id) {
   document.getElementById(id).style.display = "none"
 }
 
-document.getElementById("newContactForm").addEventListener("submit", function(e) {
-  e.preventDefault()
-  contacts.push({
-    first: document.getElementById("newFirstName").value,
-    last: document.getElementById("newLastName").value,
-    address: document.getElementById("newAddress").value,
-    email: document.getElementById("newEmail").value,
-    phone: document.getElementById("newPhone").value
-  })
-  resetNewForm()
-  renderContacts()
-  closeModal("newContactModal")
-})
+document.getElementById("newContactForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+
+  const user_id = Number(localStorage.getItem("user_id"));
+  if (!user_id) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const payload = {
+    user_id,
+    first_name: document.getElementById("newFirstName").value.trim(),
+    last_name: document.getElementById("newLastName").value.trim(),
+    address: document.getElementById("newAddress").value.trim(),
+    email: document.getElementById("newEmail").value.trim(),
+    phone: document.getElementById("newPhone").value.trim()
+  };
+
+  try {
+    const res = await fetch("/api/contacts.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || (data && data.success === false)) {
+      alert((data && (data.message || data.error)) || "Failed to create contact");
+      return;
+    }
+
+    resetNewForm();
+    closeModal("newContactModal");
+
+    await loadContacts();
+  } catch (err) {
+    console.error(err);
+    alert("Server error while creating contact.");
+  }
+});
 
 function getInitials(first, last) {
   const f = (first || "").trim();

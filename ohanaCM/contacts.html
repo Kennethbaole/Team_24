@@ -278,40 +278,102 @@ function openEdit(index) {
   openModal("editContactModal")
 }
 
-document.querySelector(".update-btn").addEventListener("click", function(e) {
-  e.preventDefault()
-  const c = contacts[currentEditIndex]
-  c.first = document.getElementById("editFirstName").value
-  c.last = document.getElementById("editLastName").value
-  c.address = document.getElementById("editAddress").value
-  c.email = document.getElementById("editEmail").value
-  c.phone = document.getElementById("editPhone").value
-  renderContacts()
-  closeModal("editContactModal")
-})
+document.querySelector(".update-btn").addEventListener("click", async function(e) {
+  e.preventDefault();
+
+  const user_id = getUserId();
+  if (!user_id) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const c = contacts[currentEditIndex];
+  if (!c || !c.id) {
+    alert("Missing contact id.");
+    return;
+  }
+
+  const payload = {
+    user_id,
+    id: Number(c.id),
+    first_name: document.getElementById("editFirstName").value.trim(),
+    last_name: document.getElementById("editLastName").value.trim(),
+    address: document.getElementById("editAddress").value.trim(),
+    email: document.getElementById("editEmail").value.trim(),
+    phone: document.getElementById("editPhone").value.trim()
+  };
+
+  try {
+    const res = await fetch("/api/contacts.php", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || (data && data.success === false)) {
+      alert((data && (data.message || data.error)) || "Update failed");
+      return;
+    }
+
+    closeModal("editContactModal");
+
+    // keep current search filter after update
+    const q = document.getElementById("searchInput").value;
+    await loadContacts(q);
+  } catch (err) {
+    console.error(err);
+    alert("Server error while updating contact.");
+  }
+});
+
 
 function confirmDelete() {
   closeModal("editContactModal")
   openModal("deleteConfirmModal")
 }
 
-function deleteContact() {
-  contacts.splice(currentEditIndex, 1)
-  renderContacts()
-  closeModal("deleteConfirmModal")
+async function deleteContact() {
+  const user_id = getUserId();
+  if (!user_id) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const c = contacts[currentEditIndex];
+  if (!c || !c.id) {
+    alert("Missing contact id.");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/contacts.php", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id, id: Number(c.id) })
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || (data && data.success === false)) {
+      alert((data && (data.message || data.error)) || "Delete failed");
+      return;
+    }
+
+    closeModal("deleteConfirmModal");
+
+    const q = document.getElementById("searchInput").value;
+    await loadContacts(q);
+  } catch (err) {
+    console.error(err);
+    alert("Server error while deleting contact.");
+  }
 }
+
 
 function resetNewForm() {
   document.getElementById("newContactForm").reset()
-}
-
-function filterContacts() {
-  const q = document.getElementById("searchInput").value.toLowerCase()
-  renderContacts()
-  document.querySelectorAll("#tableView tbody tr").forEach(row => {
-    const text = row.textContent.toLowerCase()
-    row.style.display = text.includes(q) ? "" : "none"
-  })
 }
 
 function getUserId() {

@@ -21,7 +21,7 @@
     <!-- HEADER & SEARCH ONLY -->
     <div class="contacts-header">
       <div>
-        <h2>Aloha, Noah</h2>
+        <h2 id="greetingText">Aloha</h2>
         <p>All Contacts</p>
       </div>
       <div class="actions">
@@ -422,6 +422,11 @@ function searchContacts() {
 }
 
 loadContacts();
+
+const firstName = localStorage.getItem("first_name");
+if (firstName) {
+  document.getElementById("greetingText").textContent = "Aloha, " + capitalizeName(firstName);
+}
 </script>
 
 </body>

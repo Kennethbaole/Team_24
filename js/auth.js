@@ -20,6 +20,7 @@ if (window.location.pathname.includes("login.html")) {
 
             if (result.success) {
                 localStorage.setItem("user_id", result.user_id);
+                localStorage.setItem("first_name", result.first_name);
                 window.location.href = "contacts.html";
             } else {
                 alert(result.message);
@@ -61,6 +62,7 @@ if (window.location.pathname.includes("create-account.html")) {
             const result = await response.json();
 
             if (result.success) {
+                localStorage.setItem("first_name", first_name);
                 alert("Account created successfully!");
                 window.location.href = "login.html";
             } else {

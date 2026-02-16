@@ -31,7 +31,7 @@ if (isset($data['username']) && isset($data['password']) && !isset($data['first_
     $username = $data['username'];
     $password = $data['password'];
 
-    $stmt = $conn->prepare("SELECT id, password_hash FROM users WHERE username = ?");
+    $stmt = $conn->prepare("SELECT id, password_hash, first_name FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -41,7 +41,8 @@ if (isset($data['username']) && isset($data['password']) && !isset($data['first_
         if (password_verify($password, $row['password_hash'])) {
             echo json_encode([
                 "success" => true,
-                "user_id" => $row['id']
+                "user_id" => $row['id'],
+                "first_name" => $row['first_name']
             ]);
         } else {
             echo json_encode(["message" => "Incorrect username or password"]);

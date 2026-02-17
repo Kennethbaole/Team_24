@@ -430,8 +430,14 @@ img {
 }
 
 @media (max-width: 480px) {
-  .contacts-container {
+  /* .contacts-container {
     display: none;
+  } */
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
   }
 
   .hero h2 {

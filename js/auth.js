@@ -2,6 +2,24 @@ const API_URL = "/api/users.php";
 
 /* LOGIN */
 if (window.location.pathname.includes("login.html")) {
+	
+	// Show registration success message
+const params = new URLSearchParams(window.location.search);
+if (params.get("registered") === "1") {
+    const msg = document.createElement("div");
+    msg.textContent = "Account created successfully. Please log in.";
+    msg.style.background = "#d4edda";
+    msg.style.color = "#155724";
+    msg.style.padding = "10px";
+    msg.style.marginBottom = "15px";
+    msg.style.borderRadius = "6px";
+    msg.style.textAlign = "center";
+
+    document.querySelector(".login-card").prepend(msg);
+
+    // Clean the URL after showing message
+    window.history.replaceState({}, document.title, "login.html");
+}
 
     document.querySelector("form").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -63,8 +81,8 @@ if (window.location.pathname.includes("create-account.html")) {
 
             if (result.success) {
                 localStorage.setItem("first_name", first_name);
-                alert("Account created successfully!");
-                window.location.href = "login.html";
+                
+                window.location.href = "login.html?registered=1";
             } else {
                 alert(result.message);
             }

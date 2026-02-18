@@ -38,6 +38,7 @@
 
     <!-- CONTACT TABLE -->
     <div id="tableView" class="contacts-table-container hidden"></div>
+	<div id="cardView" class="contacts-card-list hidden"></div>
 
   </div>
 </section>
@@ -224,6 +225,8 @@ function formatPhone(phone) {
 function renderContacts() {
   if (contacts.length === 0) {
     document.getElementById("noContactsView").classList.remove("hidden");
+	  document.getElementById("cardView").classList.add("hidden");
+	document.getElementById("cardView").innerHTML = "";
     document.getElementById("tableView").classList.add("hidden");
     document.getElementById("tableView").innerHTML = "";
     return;
@@ -265,6 +268,30 @@ function renderContacts() {
 
   html += `</tbody></table>`
   container.innerHTML = html
+	// ===== MOBILE CARDS =====
+const cardContainer = document.getElementById("cardView");
+cardContainer.classList.remove("hidden");
+
+let cards = "";
+
+contacts.forEach((c, i) => {
+  const initials = getInitials(c.first, c.last);
+
+  cards += `
+    <div class="contact-card-item" onclick="openEdit(${i})">
+      <div class="avatar">${initials}</div>
+      <div class="card-info">
+        <div class="card-name">${capitalizeName(c.first)} ${capitalizeName(c.last)}</div>
+        <div class="card-line">${capitalizeName(c.address)}</div>
+        <div class="card-line">${c.email}</div>
+        <div class="card-line">${formatPhone(c.phone)}</div>
+      </div>
+    </div>
+  `;
+});
+
+cardContainer.innerHTML = cards;
+
 }
 
 function openEdit(index) {

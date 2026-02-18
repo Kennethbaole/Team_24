@@ -1,3 +1,6 @@
+
+
+
 /* -------------------- RESET + BASE -------------------- */
 * {
   margin: 0;
@@ -430,15 +433,9 @@ img {
 }
 
 @media (max-width: 480px) {
-  /* .contacts-container {
-    display: none;
-  } */
+  
+ 
 
-  .actions {
-    flex-direction: column;
-    align-items: stretch;
-    width: 100%;
-  }
 
   .hero h2 {
     font-size: 1.9rem;
@@ -576,3 +573,93 @@ img {
   background: #f3f4f6;
   user-select: none;
 }
+
+/* ================= MOBILE CONTACT LIST ================= */
+
+.contacts-card-list {
+  display: none;
+}
+
+.contact-card-item {
+  background: #fff;
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+}
+
+.contact-card-item:hover {
+  background: #f7f7f7;
+}
+
+.card-info {
+  flex: 1;
+}
+
+.card-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.card-date {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* Responsive Switch */
+@media (max-width: 768px) {
+  #tableView {
+    display: none !important;
+  }
+
+  #cardView {
+    display: block !important;
+  }
+}
+/* ================= MOBILE CONTACT CARDS ================= */
+
+.contacts-card-list {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.contact-card-item {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  cursor: pointer;
+}
+
+.card-info {
+  flex: 1;
+}
+
+.card-name {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.card-line {
+  font-size: 0.9rem;
+  color: #444;
+}
+
+/* Responsive switch */
+@media (max-width: 768px) {
+  #tableView {
+    display: none !important;
+  }
+
+  #cardView {
+    display: flex !important;
+  }
+}
+

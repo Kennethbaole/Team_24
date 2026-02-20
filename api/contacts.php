@@ -10,10 +10,6 @@ $username = "Team24";
 $password = "databasekey";
 $db_name = "contact_manager";
 
-// Test require_once statement to avoid establishing another connection
-// Allow API to fetch the right contacts database from the user_id var in users.php
-// Discard if test fails
-//require_once 'users.php';
 
 $conn = new mysqli($host, $username, $password, $db_name);
 
@@ -26,8 +22,8 @@ if ($reqMethod === 'OPTIONS') {
 }
 
 $data = json_decode(file_get_contents("php://input"), true);
-// $user_id = $id; // user_id in contacts table = id in users table
 
+// POST, GET, PUT, or DELETE for CRUD operations
 switch ($reqMethod)
 {
     // ========================= //
@@ -47,56 +43,36 @@ switch ($reqMethod)
         $email = trim($data['email'] ?? '') ?: null;
         $address = trim($data['address'] ?? '') ?: null;
 
-        // Search for existing entries that matches an info
+        // Prepare contact insertion if full name is provided
         if ($first_name && $last_name)
         {
+            // Look for any contact with the same full name (No duplicates)
             $stmt = $conn->prepare("SELECT * FROM contacts WHERE user_id = ? AND first_name = ? AND last_name = ?");
-            
             if (!$stmt) 
             {
-                http_response_code(500);
+                http_response_code(500);    // Server error
                 echo json_encode(["success"=>false, "error"=>"Prepare failed", "details"=>$conn->error]);
                 break;
             }
             
-            $stmt -> bind_param("iss", $user_id, $first_name, $last_name);
-            $stmt -> execute();
+            $stmt->bind_param("iss", $user_id, $first_name, $last_name);
+            $stmt->execute();
             
             // Find any matches
-            $stmt -> store_result();
+            $stmt->store_result();
             if ($stmt->num_rows > 0) 
             {
-                http_response_code(409);
+                http_response_code(409);    // Duplicate entry
                 echo json_encode(["success"=>false, "message"=>"User is already in contacts"]);
                 $stmt->close();
                 break; 
             }
 
-            // No matching entries found!
+            // No matching entries found! Prepare insertion
             else
             {
                 if ($phone || $email || $address)
                 {
-                    /*
-                    // Validate phone number & email first!
-                    if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) // Email must have @"domain"."abc" tail format
-                    {
-                        $errors[] = "Invalid email format!";
-                    }
-                    if ($phone && !preg_match("/^\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/", $phone))    // Allow multiple phone number formats, i.e. (xxx) xxx-xxxx, xxx-xxx-xxxx,xxxxxxxxxx, etc.
-                    {       
-                            $errors[] = "Phone number must be 10 digits!";
-                    }
-
-                    // Display format error messages until user fixes them
-                    if (!empty($errors))
-                    {
-                        http_response_code(422);    // 422 - Unprocessable Entity
-                        echo json_encode(["Success" => false, "Errors" => $errors]);
-                        exit();
-                    }
-                    */
-
                     // A phone number, email, or address present and validated = good to add!
                     $stmt = $conn->prepare("INSERT INTO contacts (user_id, first_name, last_name, phone, email, address) VALUES (?,?,?,?,?, ?)");
                     if (!$stmt) {
@@ -112,7 +88,7 @@ switch ($reqMethod)
                     $stmt->bind_param("isssss", $user_id, $first_name, $last_name, $phone, $email, $address);
                     $stmt->execute();
                 
-                    http_response_code(201);    // 201 - Success
+                    http_response_code(201);    // 201 - Creation successful
                     echo json_encode(["success" => true, "message" => "Contact added successfully"]);
                     $stmt->close();
                 }
@@ -120,9 +96,8 @@ switch ($reqMethod)
                 // No phone number, email, or address added!
                 else
                 {
-                    http_response_code(422);
+                    http_response_code(422);    // 422 - Missing info
                     echo json_encode(["success" => false, "errors" => "Phone number, email, or address required!"]);
-                    //exit(); 
                 }
 
                 break;
@@ -132,9 +107,8 @@ switch ($reqMethod)
         // No name added!
         else
         {
-            http_response_code(422);    // 400 - Bad Request
+            http_response_code(422);    // 422 - Missing info
             echo json_encode(["success" => false, "errors" => "Full name required!"]);
-            //exit();
         }
 
         break;
@@ -148,12 +122,13 @@ switch ($reqMethod)
         $searchCount = 0;       // # of results found
         $searchResults = [];    // result array
 
+        // If user_id not found, set it to 0 (false)
         $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id']
                 : (isset($data['user_id']) ? (int)$data['user_id'] : 0);
 
         if (!$user_id) 
         {
-            http_response_code(400);
+            http_response_code(400);    // Bad request
             echo json_encode(["success"=>false, "error"=>"user_id is required"]);
             break;
         }
@@ -172,7 +147,7 @@ switch ($reqMethod)
             
             if (!$stmt)
             {
-                http_response_code(500);
+                http_response_code(500);    // Server error
                 echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
                 break;
             }
@@ -182,7 +157,7 @@ switch ($reqMethod)
             $stmt -> bind_param("isssss", $user_id, $pattern, $pattern, $pattern, $pattern, $pattern);
             if (!$stmt->execute()) 
             {
-                http_response_code(500);
+                http_response_code(500);    // Server error
                 echo json_encode(["success"=>false, "error"=>"Query failed", "details"=>$stmt->error]);
                 $stmt->close();
                 break;
@@ -190,7 +165,7 @@ switch ($reqMethod)
 
             $stmt->bind_result($id, $fn, $ln, $ph, $em, $ad);
 
-            // Display matches
+            // Display and count matches
             while ($stmt->fetch())
             {
                 $searchResults[] = [
@@ -204,6 +179,7 @@ switch ($reqMethod)
                 $searchCount++;
             }
 
+            // Close prepared statement
             $stmt->close();
         } 
         // Get all contact infos if pattern is empty
@@ -215,7 +191,7 @@ switch ($reqMethod)
             
             if (!$stmt)
             {
-                http_response_code(500);
+                http_response_code(500);    // Server error
                 echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
                 break;
             }
@@ -223,7 +199,7 @@ switch ($reqMethod)
             $stmt->bind_param("i", $user_id);
             if (!$stmt->execute()) 
             {
-                http_response_code(500);
+                http_response_code(500);    // Server error
                 echo json_encode(["success"=>false, "error"=>"Query failed", "details"=>$stmt->error]);
                 $stmt->close();
                 break;
@@ -231,6 +207,7 @@ switch ($reqMethod)
 
             $stmt->bind_result($id, $fn, $ln, $ph, $em, $ad);
 
+            // Display and count every contact
             while ($stmt->fetch())
             {
                 $searchResults[] = [
@@ -244,10 +221,11 @@ switch ($reqMethod)
                 $searchCount++;
             }
 
+            // Close prepared statement
             $stmt->close();
         }
         
-        http_response_code(200);
+        http_response_code(200);    // Query success
         echo json_encode(["success" => true, "count" => $searchCount, "results" => $searchResults]);
         
         break;
@@ -259,7 +237,7 @@ switch ($reqMethod)
     case 'PUT':
         // If ids not found, set them to 0 (false)
         $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0; 
-        $id = isset($data['id']) ? (int)$data['id'] : 0; // Index of edited entry in contacts tables
+        $id = isset($data['id']) ? (int)$data['id'] : 0; // Index of the contact to edit
         // Missing or empty strings get set to null
         $first_name = trim($data['first_name'] ?? '') ?: null;
         $last_name = trim($data['last_name'] ?? '') ?: null;
@@ -270,12 +248,13 @@ switch ($reqMethod)
         // If either a user id or contact id is missing
         if (!$user_id || !$id)
         {
-            http_response_code(400);
+            http_response_code(400);    // Bad request
             echo json_encode(["success" => false, "error" => "User ID and Contact ID are required"]);
             break;
         }
 
         // Check if the contact actually exists
+        // Looks for a single contact
         $exists = $conn->prepare("SELECT 1
                                 FROM contacts
                                 WHERE user_id = ? AND id = ?
@@ -283,7 +262,7 @@ switch ($reqMethod)
         
         if (!$exists)
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" =>"Prepare failed", "details" => $conn->error]);
             break;
         }
@@ -291,7 +270,7 @@ switch ($reqMethod)
         $exists->bind_param("ii", $user_id, $id);
         if (!$exists->execute())
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Existence check failed", "details" => $exists->error]);
             $exists->close();
             break;
@@ -302,26 +281,27 @@ switch ($reqMethod)
         // If contact does not exist, theres nothing to update
         if ($exists->num_rows === 0) 
         {
-            http_response_code(404);
+            http_response_code(404);    // Resource not found
             echo json_encode(["success" => false, "error" => "Contact not found"]);
             $exists->close();
             break;
         }
 
+        // Close statement
         $exists->close();
 
-        // If first and last name are not inputted
+        // If both first and last name are not inputted
         if ($first_name === null || $last_name === null)
         {
-            http_response_code(400);
+            http_response_code(400);    // Bad request
             echo json_encode(["success" => false, "error" => "Full name required!"]);
             break;
         }
 
-        // If a neither a phone number, email, nor address is provided
-        if ($phone === null && $email === null)
+        // If neither a phone number, email, nor address is provided
+        if ($phone === null && $email === null && $address === null)
         {
-            http_response_code(422);
+            http_response_code(422);    // Missing info
             echo json_encode(["success" => false, "errors" => "Phone number, email, or address required!"]);
             break;
         }
@@ -335,7 +315,7 @@ switch ($reqMethod)
 
         if (!$stmt) 
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
             break;
         }
@@ -347,12 +327,13 @@ switch ($reqMethod)
         // The new name is already taken by another contact, prevent update
         if ($stmt->num_rows > 0) 
         {
-            http_response_code(409);
+            http_response_code(409);    // Duplicate name
             echo json_encode(["success" => false, "message" => "A contact with this first and last name already exists"]);
             $stmt->close();
             break;
         }
         
+        // Close prepared statement
         $stmt->close();
 
         // Update the contact
@@ -362,7 +343,7 @@ switch ($reqMethod)
 
         if (!$stmt) 
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
             break;
         }
@@ -371,7 +352,7 @@ switch ($reqMethod)
 
         if (!$stmt->execute()) 
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Update failed", "details" => $stmt->error]);
             $stmt->close();
             break;
@@ -382,7 +363,7 @@ switch ($reqMethod)
         echo json_encode(["success" => true,
                         "message" => ($stmt->affected_rows > 0) ? "Contact updated successfully" : "No changes (already up to date)"]);
 
-        // Close connection
+        // Close statement
         $stmt->close();
         break;
     
@@ -393,12 +374,12 @@ switch ($reqMethod)
     case 'DELETE':
         // If ids not found, set them to 0 (false)
         $user_id = isset($data['user_id']) ? (int)$data['user_id'] : 0; 
-        $id = isset($data['id']) ? (int)$data['id'] : 0; // Index of edited entry in contacts tables   
+        $id = isset($data['id']) ? (int)$data['id'] : 0; // Index of the contact to delete   
 
         // If either a user id or contact id is missing
         if (!$user_id || !$id)
         {
-            http_response_code(400);
+            http_response_code(400);    // Bad request
             echo json_encode(["success" => false, "error" => "User ID and Contact ID are required"]);
             break;
         }
@@ -411,7 +392,7 @@ switch ($reqMethod)
         
         if (!$exists)
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
             break;
         }
@@ -419,7 +400,7 @@ switch ($reqMethod)
         $exists->bind_param("ii", $user_id, $id);
         if (!$exists->execute())
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Existence check failed", "details" => $exists->error]);
             $exists->close();
             break;
@@ -430,12 +411,13 @@ switch ($reqMethod)
         // If contact does not exist, theres nothing to delete
         if ($exists->num_rows === 0) 
         {
-            http_response_code(404);
+            http_response_code(404);    // Resource not found
             echo json_encode(["success" => false, "message" => "Contact not found"]);
             $exists->close();
             break;
         }
 
+        // Close statement
         $exists->close();
 
         // Delete contact
@@ -444,7 +426,7 @@ switch ($reqMethod)
         
         if (!$stmt) 
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Prepare failed", "details" => $conn->error]);
             break;
         }
@@ -453,7 +435,7 @@ switch ($reqMethod)
 
         if (!$stmt->execute())
         {
-            http_response_code(500);
+            http_response_code(500);    // Server error
             echo json_encode(["success" => false, "error" => "Delete failed", "details" => $stmt->error]);
             $stmt->close();
             break;
@@ -461,7 +443,7 @@ switch ($reqMethod)
 
         $stmt->close();
 
-        http_response_code(200);
+        http_response_code(200);    // Delete success
         echo json_encode(["success" => true, "message" => "Contact deleted successfully"]);
 
         break;
@@ -476,6 +458,7 @@ switch ($reqMethod)
         break;
 }
 
+// Close connection
 $conn->close();
 
 ?>
